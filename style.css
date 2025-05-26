@@ -1,0 +1,5 @@
+body { font-family: Arial; padding: 20px; }
+h1, h2 { color: #004466; }
+ul { list-style-type: none; }
+a { text-decoration: none; color: #006699; }
+a:hover { text-decoration: underline; }

@@ -5,7 +5,7 @@ struct ContentView: View {
     @State private var selectedTab: Tab = .home
 
     enum Tab {
-        case home, conversation, history, settings
+        case home, conversation, focus, history, settings
     }
 
     var body: some View {
@@ -21,6 +21,12 @@ struct ContentView: View {
                     Label("Assistant", systemImage: "bubble.left.and.bubble.right.fill")
                 }
                 .tag(Tab.conversation)
+
+            FocusView()
+                .tabItem {
+                    Label("Focus", systemImage: "scope")
+                }
+                .tag(Tab.focus)
 
             HistoryView()
                 .tabItem {

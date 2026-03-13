@@ -1,124 +1,154 @@
-# Executive Assistant — iOS App
+# Executive Assistant — iPhone App
 
-An intelligent iPhone executive assistant powered by Claude claude-opus-4-6. The app listens to your daily life through the microphone, transcribes speech in real-time, and allows you to upload files and photos for context-aware AI assistance.
+An intelligent iPhone executive assistant powered by **Claude claude-opus-4-6**. The app listens to your daily life through the microphone, lets you upload files and photos, and — in Agent Mode — takes direct actions on your phone through voice or text commands. Includes dedicated **ADD/ADHD support features** to help manage executive dysfunction.
+
+---
 
 ## Features
 
-### Voice Listening
-- **Continuous microphone listening** using AVAudioEngine + Apple's SFSpeechRecognizer
-- Real-time speech-to-text transcription displayed as you speak
-- Automatic silence detection (3-second pause triggers send)
-- Audio level visualization waveform
-- Background audio mode enabled
+### Voice & Conversation
+- **Continuous microphone listening** via AVAudioEngine + SFSpeechRecognizer
+- Real-time speech-to-text transcription shown as you speak
+- 3-second silence detection auto-triggers send
+- Upload photos (up to 5) and files (PDF, text, images)
 
 ### AI Assistant (Claude claude-opus-4-6)
-- Powered by Anthropic's Claude claude-opus-4-6 model via the Messages API
-- Streaming responses for real-time output
-- Configurable **personality modes**: Executive, Concise, Detailed, Friendly
-- Configurable **context window** (4–50 messages)
-- System prompt tailored for executive assistance
+- Powered by Anthropic's Claude claude-opus-4-6 via Messages API
+- **Streaming responses** for real-time output (non-agent mode)
+- **5 personality modes**: Executive, ADHD Coach, Concise, Detailed, Friendly
+- Configurable context window (4–50 messages)
+- Vision support — images sent as base64 content blocks
 
-### File & Photo Upload
-- **Photo Library** picker (up to 5 images at once) via PhotosUI
-- **Document picker** supporting PDF, text, and image files
-- Images sent as base64-encoded vision content to Claude
-- PDF text extraction via PDFKit
-- Large image auto-compression
+### Agent Mode — Take Actions on Your Phone
+When enabled, Claude autonomously executes chains of actions to complete requests:
 
-### Conversation Management
-- Persistent conversation history (stored in UserDefaults)
-- Auto-titling from first user message
-- Full-text search across conversations
-- Swipe-to-delete with confirmation
-- Grouped by date (Today, Yesterday, etc.)
+| Tool | What it Does |
+|---|---|
+| `make_phone_call` | Opens the iOS dialer — iOS confirms before dialing |
+| `send_text_message` | Opens Messages pre-filled — user taps Send |
+| `compose_email` | Opens Mail pre-filled — user taps Send |
+| `create_calendar_event` | Creates event in Calendar via EventKit |
+| `create_reminder` | Creates reminder in Reminders via EventKit |
+| `search_contacts` | Looks up phone/email from your Contacts |
+| `open_app` | Opens any built-in app (Settings, Maps, Music, etc.) |
+| `web_search` | Searches Google/DuckDuckGo/Bing in Safari |
+| `open_maps` | Searches or navigates in Apple Maps |
+| `set_timer` | Opens Clock app with timer pre-set |
+| `get_current_datetime` | Returns date/time/timezone for scheduling |
+| `open_url` | Opens any URL in Safari |
 
-### User Interface
-- Tab-based navigation: Home · Assistant · History · Settings
-- **Home dashboard** with quick actions, status card, recent conversations
-- **Conversation view** with iMessage-style chat bubbles, typing indicator
-- **History view** with search and grouped dates
-- **Settings** with API key management, connection test, personality/context config
-- Error banner overlay for API failures
-- Dark mode compatible
+**Example:** *"Call Sarah and remind me to follow up tomorrow"*
+→ search_contacts("Sarah") → make_phone_call("415-555-0192") → create_reminder("Follow up with Sarah", tomorrow 9am)
+
+### ADD/ADHD Support
+Designed specifically for executive dysfunction:
+
+- **ADHD Coach personality** — short responses, one action at a time, time estimates, encouragement, Pomodoro suggestions
+- **Overwhelm SOS** — prominent red button on Home and Focus screens; Claude responds with ONE clear next action
+- **Focus Mode tab**:
+  - Large current-task display (tap to edit)
+  - Pomodoro ring timer with configurable duration (15–60 min)
+  - Work/break session tracking with haptic feedback on completion
+  - Focus task checklist — tap to complete with strikethrough animation
+  - **Quick Capture** — one tap to listen, Claude organizes the thought as [Task]/[Reminder]/[Note]
+  - Rotating evidence-based ADD tips
+- **"Save as Focus Tasks"** — appears on Claude responses with numbered lists; extracts steps into the Focus checklist
+- **Body-double-friendly** — keep the app listening while you work
+
+---
+
+## Setup
+
+### Requirements
+- Xcode 15+, iOS 17.0+
+- Real iPhone (or Simulator with mic)
+- Anthropic API key — [console.anthropic.com](https://console.anthropic.com)
+
+### Steps
+1. Open `ExecutiveAssistant.xcodeproj` in Xcode
+2. Set your **Development Team** in Signing & Capabilities
+3. Build & run on device
+4. **Settings → API Key → Add** your `sk-ant-...` key
+5. Optionally enable **Agent Mode** in Settings
+
+### Permissions Required
+| Permission | Reason |
+|---|---|
+| Microphone | Voice capture for transcription |
+| Speech Recognition | Convert audio to text |
+| Photo Library | Attach photos to conversations |
+| Camera | Capture documents/whiteboards |
+| Calendar Full Access | Create calendar events (Agent Mode) |
+| Reminders Full Access | Create reminders (Agent Mode) |
+| Contacts | Look up phone numbers/emails (Agent Mode) |
+
+---
 
 ## Project Structure
 
 ```
 ExecutiveAssistant/
 ├── ExecutiveAssistant.xcodeproj/
-│   └── project.pbxproj
 └── ExecutiveAssistant/
     ├── App/
-    │   ├── ExecutiveAssistantApp.swift   # @main entry point
-    │   └── Info.plist                    # Permissions + config
-    ├── Views/
-    │   ├── ContentView.swift             # Tab container + error banner
-    │   ├── HomeView.swift                # Dashboard
-    │   ├── ConversationView.swift        # Chat UI + input area
-    │   ├── HistoryView.swift             # Conversation list
-    │   └── SettingsView.swift            # API key + preferences
+    │   ├── ExecutiveAssistantApp.swift
+    │   └── Info.plist
     ├── Models/
-    │   ├── Message.swift                 # Message, Conversation, AttachmentItem
-    │   └── ConversationStore.swift       # ObservableObject state + logic
+    │   ├── Message.swift               Message, Conversation, AttachmentItem
+    │   ├── ConversationStore.swift     State management, agent tasks, ADD features
+    │   └── AgentTool.swift             JSONValue, tool definitions, AgentAction
     ├── Services/
-    │   ├── ClaudeService.swift           # Anthropic API + streaming
-    │   ├── AudioService.swift            # AVAudioEngine + SFSpeechRecognizer
-    │   └── FileService.swift             # Image/PDF processing
-    ├── Assets.xcassets/                  # App icon + accent color
-    └── LaunchScreen.storyboard
+    │   ├── ClaudeService.swift         Anthropic API + SSE streaming
+    │   ├── AgentService.swift          Tool-use agent loop (max 10 iterations)
+    │   ├── AudioService.swift          AVAudioEngine + SFSpeechRecognizer
+    │   ├── FileService.swift           Image compression, PDF extraction
+    │   └── PhoneActionsService.swift   iOS actions (EventKit, Contacts, URL schemes)
+    └── Views/
+        ├── ContentView.swift           5-tab container
+        ├── HomeView.swift              Dashboard, Overwhelm SOS, quick actions
+        ├── ConversationView.swift      Chat UI + AgentActionCards
+        ├── FocusView.swift             Pomodoro + task checklist + Quick Capture
+        ├── HistoryView.swift           Searchable conversation history
+        └── SettingsView.swift          API key, agent, ADD/focus settings
 ```
 
-## Setup Instructions
-
-### Requirements
-- Xcode 15+
-- iOS 17.0+ deployment target
-- iPhone or Simulator with microphone support
-- Anthropic API key (get one at https://console.anthropic.com)
-
-### Steps
-1. Open `ExecutiveAssistant.xcodeproj` in Xcode
-2. Set your development team in **Signing & Capabilities**
-3. Build and run on device or simulator
-4. On first launch, go to **Settings → API Key → Add**
-5. Enter your `sk-ant-...` API key and tap Save
-6. Return to Home and tap **Start Listening** or go to **Assistant**
-
-### Permissions Requested
-| Permission | Reason |
-|---|---|
-| Microphone | Continuous voice capture for real-time transcription |
-| Speech Recognition | Convert speech audio to text via Apple's on-device + server models |
-| Photo Library | Select photos/documents to share with the assistant |
-| Camera | Capture documents/whiteboards for analysis |
+---
 
 ## Architecture
 
-- **SwiftUI** throughout for declarative UI
-- **Combine** for reactive data flow between AudioService → ConversationStore → Views
-- **@EnvironmentObject** (`ConversationStore`) shared across all views
-- **@AppStorage** for persistent user settings
-- **URLSession** for direct Anthropic API calls with SSE streaming
-- **AVAudioEngine** tap for raw audio buffers → speech recognition
-- **PhotosUI** `PhotosPicker` for modern photo selection API
+```
+Voice/Text input
+       ↓
+ConversationStore.sendMessage()
+  ├─ agentModeEnabled → AgentService.runAgent()
+  │     Tool-use loop (up to 10 iterations):
+  │       Claude API (non-streaming) + tools
+  │       "tool_use" → PhoneActionsService.execute() → iOS action
+  │       Progress callbacks → AgentActionCards in UI
+  │       "end_turn" → done
+  └─ standard mode → ClaudeService.sendMessage(stream: true)
+        SSE chunks → real-time text in chat bubble
+
+ADD Flow:
+  Overwhelm SOS → sendOverwhelmSOS() → single-action response
+  Claude numbered list → "Save as Focus Tasks" → extractTasksFromLastResponse()
+      → focusTasks[] → FocusView checklist
+  Quick Capture mic → sendQuickCapture() → [Reminder]/[Task]/[Note] response
+```
+
+---
 
 ## API Integration
 
-The app uses the Anthropic Messages API with SSE streaming:
-
+**Regular chat** — SSE streaming:
 ```
-POST https://api.anthropic.com/v1/messages
-Headers:
-  x-api-key: <your-key>
-  anthropic-version: 2023-06-01
-  Content-Type: application/json
-
-Body:
-  model: claude-opus-4-6
-  max_tokens: 4096
-  stream: true
-  system: <personality prompt>
-  messages: [{ role, content: [text/image blocks] }]
+POST /v1/messages  { stream: true, model, system, messages }
+event: content_block_delta → delta.text chunks
 ```
 
-Images are sent as base64-encoded `image` content blocks. PDFs are extracted to text and sent as text blocks.
+**Agent mode** — tool use loop:
+```
+POST /v1/messages  { tools: [...12 tools...], model, system, messages }
+→ stop_reason "tool_use"  → execute tools → append tool_result → repeat
+→ stop_reason "end_turn"  → final response
+```

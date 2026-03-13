@@ -37,6 +37,7 @@ struct Message: Identifiable, Codable {
     let timestamp: Date
     var attachments: [AttachmentItem]
     var isStreaming: Bool
+    var agentActions: [AgentAction]?
 
     init(
         id: UUID = UUID(),
@@ -44,7 +45,8 @@ struct Message: Identifiable, Codable {
         content: String,
         timestamp: Date = Date(),
         attachments: [AttachmentItem] = [],
-        isStreaming: Bool = false
+        isStreaming: Bool = false,
+        agentActions: [AgentAction]? = nil
     ) {
         self.id = id
         self.role = role
@@ -52,6 +54,7 @@ struct Message: Identifiable, Codable {
         self.timestamp = timestamp
         self.attachments = attachments
         self.isStreaming = isStreaming
+        self.agentActions = agentActions
     }
 }
 

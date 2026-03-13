@@ -7,7 +7,6 @@ struct SettingsView: View {
     @State private var showingClearAlert = false
     @State private var testingAPI = false
     @State private var apiTestResult: String?
-    @FocusState private var apiKeyFocused: Bool
 
     var body: some View {
         NavigationView {
@@ -15,20 +14,15 @@ struct SettingsView: View {
                 // API Configuration
                 Section {
                     HStack {
-                        Image(systemName: "key.fill")
-                            .foregroundColor(.indigo)
-                            .frame(width: 28)
+                        Image(systemName: "key.fill").foregroundColor(.indigo).frame(width: 28)
                         VStack(alignment: .leading, spacing: 2) {
-                            Text("Claude API Key")
-                                .font(.subheadline.bold())
+                            Text("Claude API Key").font(.subheadline.bold())
                             if store.apiKey.isEmpty {
                                 Text("Required to use the assistant")
-                                    .font(.caption)
-                                    .foregroundColor(.orange)
+                                    .font(.caption).foregroundColor(.orange)
                             } else {
                                 Text("••••••••" + String(store.apiKey.suffix(4)))
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
+                                    .font(.caption).foregroundColor(.secondary)
                             }
                         }
                         Spacer()
@@ -36,24 +30,18 @@ struct SettingsView: View {
                             tempAPIKey = store.apiKey
                             showAPIKey = true
                         }
-                        .font(.subheadline)
-                        .foregroundColor(.indigo)
+                        .font(.subheadline).foregroundColor(.indigo)
                     }
 
                     if !store.apiKey.isEmpty {
-                        Button {
-                            testAPIKey()
-                        } label: {
+                        Button { testAPIKey() } label: {
                             HStack {
                                 Image(systemName: testingAPI ? "hourglass" : "checkmark.circle")
-                                    .foregroundColor(.green)
-                                    .frame(width: 28)
-                                Text(testingAPI ? "Testing..." : "Test Connection")
-                                    .foregroundColor(.primary)
+                                    .foregroundColor(.green).frame(width: 28)
+                                Text(testingAPI ? "Testing..." : "Test Connection").foregroundColor(.primary)
                                 Spacer()
                                 if let result = apiTestResult {
-                                    Text(result)
-                                        .font(.caption)
+                                    Text(result).font(.caption)
                                         .foregroundColor(result.contains("✓") ? .green : .red)
                                 }
                             }
@@ -63,15 +51,61 @@ struct SettingsView: View {
                 } header: {
                     Text("API Configuration")
                 } footer: {
-                    Text("Your API key is stored securely on device. Get your key at console.anthropic.com")
+                    Text("Your API key is stored securely on device. Get yours at console.anthropic.com")
                 }
 
-                // Assistant Personality
+                // Agent Mode
+                Section {
+                    Toggle(isOn: $store.agentModeEnabled) {
+                        HStack {
+                            Image(systemName: "bolt.fill").foregroundColor(.orange).frame(width: 28)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Agent Mode")
+                                Text("Let the assistant take actions on your phone")
+                                    .font(.caption).foregroundColor(.secondary)
+                            }
+                        }
+                    }
+                    .tint(.orange)
+
+                    if store.agentModeEnabled {
+                        HStack {
+                            Image(systemName: "info.circle").foregroundColor(.secondary).frame(width: 28)
+                            Text("Agent mode uses non-streaming API calls and may require additional permissions (Calendar, Reminders, Contacts).")
+                                .font(.caption).foregroundColor(.secondary)
+                        }
+                    }
+                } header: {
+                    Text("Agent Mode")
+                } footer: {
+                    Text("When enabled, Claude can make phone calls, send messages, create calendar events, set reminders, search contacts, open apps, and more.")
+                }
+
+                // Focus & ADD Support
                 Section {
                     HStack {
-                        Image(systemName: "person.fill")
-                            .foregroundColor(.indigo)
-                            .frame(width: 28)
+                        Image(systemName: "timer").foregroundColor(.indigo).frame(width: 28)
+                        Text("Pomodoro Duration")
+                        Spacer()
+                        Picker("", selection: $store.pomodoroDuration) {
+                            Text("15 min").tag(15)
+                            Text("20 min").tag(20)
+                            Text("25 min").tag(25)
+                            Text("30 min").tag(30)
+                            Text("45 min").tag(45)
+                        }
+                        .pickerStyle(.menu)
+                    }
+                } header: {
+                    Text("Focus & ADD Support")
+                } footer: {
+                    Text("The ADHD Coach personality mode provides structured, brief responses with one action at a time. Select it below.")
+                }
+
+                // Assistant
+                Section {
+                    HStack {
+                        Image(systemName: "person.fill").foregroundColor(.indigo).frame(width: 28)
                         Text("Personality")
                         Spacer()
                         Picker("", selection: $store.assistantPersonality) {
@@ -83,62 +117,40 @@ struct SettingsView: View {
                     }
 
                     HStack {
-                        Image(systemName: "text.bubble.fill")
-                            .foregroundColor(.indigo)
-                            .frame(width: 28)
+                        Image(systemName: "text.bubble.fill").foregroundColor(.indigo).frame(width: 28)
                         Text("Context Window")
                         Spacer()
-                        Stepper("\(store.contextWindowSize) msgs", value: $store.contextWindowSize, in: 4...50, step: 2)
+                        Stepper("", value: $store.contextWindowSize, in: 4...50, step: 2)
                             .labelsHidden()
-                        Text("\(store.contextWindowSize)")
+                        Text("\(store.contextWindowSize) msgs")
                             .foregroundColor(.secondary)
-                            .frame(width: 36)
+                            .frame(width: 60)
                     }
-                } header: {
-                    Text("Assistant")
-                }
 
-                // Listening Settings
-                Section {
                     Toggle(isOn: $store.autoListenEnabled) {
                         HStack {
-                            Image(systemName: "mic.badge.auto.fill")
-                                .foregroundColor(.indigo)
-                                .frame(width: 28)
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("Auto-Listen")
-                                Text("Automatically start listening when app opens")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                            }
+                            Image(systemName: "mic.badge.auto.fill").foregroundColor(.indigo).frame(width: 28)
+                            Text("Auto-Listen on Open")
                         }
                     }
                     .tint(.indigo)
                 } header: {
-                    Text("Listening")
+                    Text("Assistant")
                 }
 
                 // About
                 Section {
                     HStack {
-                        Image(systemName: "info.circle.fill")
-                            .foregroundColor(.indigo)
-                            .frame(width: 28)
+                        Image(systemName: "info.circle.fill").foregroundColor(.indigo).frame(width: 28)
                         Text("Version")
                         Spacer()
-                        Text("1.0.0")
-                            .foregroundColor(.secondary)
+                        Text("1.1.0").foregroundColor(.secondary)
                     }
-
                     HStack {
-                        Image(systemName: "cpu.fill")
-                            .foregroundColor(.indigo)
-                            .frame(width: 28)
+                        Image(systemName: "cpu.fill").foregroundColor(.indigo).frame(width: 28)
                         Text("AI Model")
                         Spacer()
-                        Text("claude-opus-4-6")
-                            .foregroundColor(.secondary)
-                            .font(.caption)
+                        Text("claude-opus-4-6").font(.caption).foregroundColor(.secondary)
                     }
                 } header: {
                     Text("About")
@@ -146,13 +158,16 @@ struct SettingsView: View {
 
                 // Data Management
                 Section {
-                    Button(role: .destructive) {
-                        showingClearAlert = true
-                    } label: {
+                    Button(role: .destructive) { showingClearAlert = true } label: {
                         HStack {
-                            Image(systemName: "trash.fill")
-                                .frame(width: 28)
+                            Image(systemName: "trash.fill").frame(width: 28)
                             Text("Clear All Conversations")
+                        }
+                    }
+                    Button(role: .destructive) { store.focusTasks.removeAll() } label: {
+                        HStack {
+                            Image(systemName: "checklist").frame(width: 28)
+                            Text("Clear Focus Tasks")
                         }
                     }
                 } header: {
@@ -183,17 +198,13 @@ struct SettingsView: View {
         testingAPI = true
         apiTestResult = nil
         let service = ClaudeService()
-        let testMsg = Message(role: .user, content: "Hello, respond with just 'ok'.")
-        service.sendMessage(
-            messages: [testMsg],
-            systemPrompt: "You are a test assistant.",
-            apiKey: store.apiKey
-        ) { result in
+        let testMsg = Message(role: .user, content: "Reply with just 'ok'.")
+        service.sendMessage(messages: [testMsg], systemPrompt: "Be brief.", apiKey: store.apiKey) { result in
             DispatchQueue.main.async {
                 testingAPI = false
                 switch result {
                 case .success: apiTestResult = "✓ Connected"
-                case .failure(let error): apiTestResult = "✗ \(error.localizedDescription)"
+                case .failure(let e): apiTestResult = "✗ \(e.localizedDescription)"
                 }
             }
         } onStream: { _ in }
@@ -221,9 +232,7 @@ struct APIKeyInputSheet: View {
                                 .autocapitalization(.none)
                                 .autocorrectionDisabled()
                         }
-                        Button {
-                            showKey.toggle()
-                        } label: {
+                        Button { showKey.toggle() } label: {
                             Image(systemName: showKey ? "eye.slash" : "eye")
                                 .foregroundColor(.secondary)
                         }
@@ -231,10 +240,7 @@ struct APIKeyInputSheet: View {
                 } header: {
                     Text("Enter API Key")
                 } footer: {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Your API key starts with 'sk-ant-'")
-                        Text("It is stored securely in device keychain and never leaves your device.")
-                    }
+                    Text("Your key starts with 'sk-ant-' and is stored securely on device only.")
                 }
             }
             .navigationTitle("API Key")

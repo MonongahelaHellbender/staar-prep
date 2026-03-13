@@ -10,7 +10,6 @@ struct ConversationView: View {
     @State private var showingAttachmentMenu = false
     @State private var selectedPhotos: [PhotosPickerItem] = []
     @FocusState private var isInputFocused: Bool
-    @State private var scrollProxy: ScrollViewProxy?
 
     var body: some View {
         NavigationView {
@@ -38,9 +37,7 @@ struct ConversationView: View {
                         }
                         .onChange(of: store.isProcessing) { processing in
                             if processing {
-                                withAnimation {
-                                    proxy.scrollTo("typing", anchor: .bottom)
-                                }
+                                withAnimation { proxy.scrollTo("typing", anchor: .bottom) }
                             }
                         }
                     }
@@ -69,7 +66,7 @@ struct ConversationView: View {
                     showingFilePicker: $showingFilePicker
                 )
             }
-            .navigationTitle(store.activeConversation?.title ?? "Executive Assistant")
+            .navigationTitle(store.activeConversation?.title ?? "Assistant")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
@@ -80,7 +77,26 @@ struct ConversationView: View {
                     }
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    ListeningButton()
+                    HStack(spacing: 12) {
+                        // Agent mode toggle
+                        Button {
+                            store.agentModeEnabled.toggle()
+                        } label: {
+                            HStack(spacing: 4) {
+                                Image(systemName: "bolt.fill")
+                                    .font(.caption.bold())
+                                Text("Agent")
+                                    .font(.caption.bold())
+                            }
+                            .foregroundColor(store.agentModeEnabled ? .white : .indigo)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(store.agentModeEnabled ? Color.indigo : Color.indigo.opacity(0.1))
+                            .clipShape(Capsule())
+                        }
+
+                        ListeningButton()
+                    }
                 }
             }
         }
@@ -113,8 +129,7 @@ struct ConversationView: View {
                     guard url.startAccessingSecurityScopedResource() else { continue }
                     defer { url.stopAccessingSecurityScopedResource() }
                     if let data = try? Data(contentsOf: url) {
-                        let name = url.lastPathComponent
-                        let attachment = FileService.processFileData(data, fileName: name, contentType: nil)
+                        let attachment = FileService.processFileData(data, fileName: url.lastPathComponent, contentType: nil)
                         store.addAttachment(attachment)
                     }
                 }
@@ -128,8 +143,8 @@ struct ConversationView: View {
 // MARK: - Message Bubble
 
 struct MessageBubble: View {
+    @EnvironmentObject var store: ConversationStore
     let message: Message
-
     private var isUser: Bool { message.role == .user }
 
     var body: some View {
@@ -137,7 +152,7 @@ struct MessageBubble: View {
             if isUser { Spacer(minLength: 60) }
 
             if !isUser {
-                Image(systemName: "sparkles")
+                Image(systemName: store.agentModeEnabled ? "bolt.fill" : "sparkles")
                     .font(.caption)
                     .foregroundColor(.indigo)
                     .frame(width: 28, height: 28)
@@ -145,38 +160,61 @@ struct MessageBubble: View {
                     .clipShape(Circle())
             }
 
-            VStack(alignment: isUser ? .trailing : .leading, spacing: 4) {
+            VStack(alignment: isUser ? .trailing : .leading, spacing: 6) {
                 // Attachments
                 if !message.attachments.isEmpty {
                     AttachmentPreviewInMessage(attachments: message.attachments)
                 }
 
-                // Text bubble
-                if !message.content.isEmpty {
-                    Text(message.content)
-                        .font(.body)
-                        .foregroundColor(isUser ? .white : .primary)
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 10)
-                        .background(
-                            isUser
-                            ? Color.indigo
-                            : Color(.secondarySystemBackground)
-                        )
-                        .clipShape(BubbleShape(isFromUser: isUser))
+                // Agent action cards
+                if let actions = message.agentActions, !actions.isEmpty {
+                    VStack(spacing: 6) {
+                        ForEach(actions) { action in
+                            AgentActionCard(action: action)
+                        }
+                    }
+                    .frame(maxWidth: 280, alignment: .leading)
                 }
 
-                // Streaming indicator
-                if message.isStreaming {
-                    HStack(spacing: 4) {
-                        ForEach(0..<3, id: \.self) { i in
-                            Circle()
-                                .fill(Color.indigo)
-                                .frame(width: 5, height: 5)
-                                .opacity(0.4)
+                // Text bubble
+                if !message.content.isEmpty || message.isStreaming {
+                    VStack(alignment: .leading, spacing: 4) {
+                        if !message.content.isEmpty {
+                            Text(message.content)
+                                .font(.body)
+                                .foregroundColor(isUser ? .white : .primary)
+                        }
+                        if message.isStreaming && message.content.isEmpty {
+                            HStack(spacing: 4) {
+                                ForEach(0..<3, id: \.self) { _ in
+                                    Circle().fill(Color.secondary).frame(width: 5, height: 5).opacity(0.5)
+                                }
+                            }
                         }
                     }
                     .padding(.horizontal, 14)
+                    .padding(.vertical, 10)
+                    .background(isUser ? Color.indigo : Color(.secondarySystemBackground))
+                    .clipShape(RoundedRectangle(cornerRadius: 18))
+                }
+
+                // "Save as Focus Tasks" button for numbered-list responses
+                if !isUser && !message.isStreaming && hasNumberedList(message.content) {
+                    Button {
+                        store.extractTasksFromLastResponse()
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "checklist")
+                                .font(.caption)
+                            Text("Save as Focus Tasks")
+                                .font(.caption.bold())
+                        }
+                        .foregroundColor(.indigo)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(Color.indigo.opacity(0.1))
+                        .clipShape(Capsule())
+                    }
                 }
 
                 Text(message.timestamp.formatted(.dateTime.hour().minute()))
@@ -190,27 +228,88 @@ struct MessageBubble: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 2)
     }
-}
 
-struct BubbleShape: Shape {
-    let isFromUser: Bool
-
-    func path(in rect: CGRect) -> Path {
-        let radius: CGFloat = 18
-        let tailSize: CGFloat = 6
-        var path = Path()
-
-        if isFromUser {
-            path.addRoundedRect(in: CGRect(x: rect.minX, y: rect.minY, width: rect.width - tailSize, height: rect.height),
-                                cornerSize: CGSize(width: radius, height: radius))
-        } else {
-            path.addRoundedRect(in: CGRect(x: rect.minX + tailSize, y: rect.minY, width: rect.width - tailSize, height: rect.height),
-                                cornerSize: CGSize(width: radius, height: radius))
+    private func hasNumberedList(_ text: String) -> Bool {
+        let lines = text.components(separatedBy: "\n")
+        let numbered = lines.filter { line in
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            return trimmed.first?.isNumber == true && (trimmed.hasPrefix("1.") || trimmed.hasPrefix("1)") || trimmed.hasPrefix("2.") || trimmed.hasPrefix("2)"))
         }
-
-        return path
+        return numbered.count >= 2
     }
 }
+
+// MARK: - Agent Action Card
+
+struct AgentActionCard: View {
+    let action: AgentAction
+
+    var body: some View {
+        HStack(spacing: 10) {
+            // Tool icon
+            Image(systemName: AgentToolDefinition.systemIcon(for: action.toolName))
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundColor(iconColor)
+                .frame(width: 28, height: 28)
+                .background(iconColor.opacity(0.12))
+                .clipShape(Circle())
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(AgentToolDefinition.displayName(for: action.toolName))
+                    .font(.caption.bold())
+                    .foregroundColor(.primary)
+                Text(action.inputSummary)
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+                    .lineLimit(1)
+                if let result = action.result {
+                    Text(result)
+                        .font(.caption2)
+                        .foregroundColor(action.isError ? .red : .green)
+                        .lineLimit(2)
+                }
+            }
+
+            Spacer()
+
+            // Status indicator
+            Group {
+                switch action.status {
+                case .executing:
+                    ProgressView()
+                        .scaleEffect(0.75)
+                        .tint(.indigo)
+                case .success:
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundColor(.green)
+                        .font(.system(size: 16))
+                case .failed:
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundColor(.red)
+                        .font(.system(size: 16))
+                }
+            }
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .background(Color(.tertiarySystemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .overlay(
+            RoundedRectangle(cornerRadius: 10)
+                .stroke(iconColor.opacity(0.15), lineWidth: 1)
+        )
+    }
+
+    private var iconColor: Color {
+        switch action.status {
+        case .executing: return .indigo
+        case .success: return .green
+        case .failed: return .red
+        }
+    }
+}
+
+// MARK: - Attachment Preview In Message
 
 struct AttachmentPreviewInMessage: View {
     let attachments: [AttachmentItem]
@@ -245,12 +344,15 @@ struct AttachmentPreviewInMessage: View {
     }
 }
 
+// MARK: - Typing Indicator
+
 struct TypingIndicator: View {
+    @EnvironmentObject var store: ConversationStore
     @State private var animating = false
 
     var body: some View {
         HStack(alignment: .bottom, spacing: 8) {
-            Image(systemName: "sparkles")
+            Image(systemName: store.agentModeEnabled ? "bolt.fill" : "sparkles")
                 .font(.caption)
                 .foregroundColor(.indigo)
                 .frame(width: 28, height: 28)
@@ -293,82 +395,71 @@ struct InputArea: View {
     @Binding var showingFilePicker: Bool
 
     var body: some View {
-        VStack(spacing: 0) {
-            HStack(alignment: .bottom, spacing: 8) {
-                // Attachment button
-                Button {
-                    showingAttachmentMenu = true
-                } label: {
-                    Image(systemName: "paperclip")
-                        .font(.system(size: 20))
-                        .foregroundColor(.indigo)
-                        .frame(width: 36, height: 36)
-                }
-                .confirmationDialog("Add Attachment", isPresented: $showingAttachmentMenu) {
-                    Button("Photo Library") { showingPhotoPicker = true }
-                    Button("Browse Files") { showingFilePicker = true }
-                    Button("Cancel", role: .cancel) {}
-                }
-
-                // Text field
-                ZStack(alignment: .leading) {
-                    if inputText.isEmpty && !store.isListening {
-                        Text("Message or ask anything...")
-                            .foregroundColor(.secondary)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 10)
-                    }
-                    TextEditor(text: store.isListening ? $store.transcribedText : $inputText)
-                        .focused($isInputFocused)
-                        .frame(minHeight: 40, maxHeight: 120)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                .background(Color(.secondarySystemBackground))
-                .clipShape(RoundedRectangle(cornerRadius: 20))
-
-                // Mic / Send button
-                if store.isListening || !inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !store.transcribedText.isEmpty {
-                    Button {
-                        if store.isListening {
-                            store.stopListening()
-                            if !store.transcribedText.isEmpty {
-                                store.sendTranscription()
-                            }
-                        } else {
-                            let text = inputText
-                            inputText = ""
-                            store.sendMessage(text, attachments: store.pendingAttachments)
-                        }
-                    } label: {
-                        Image(systemName: store.isListening ? "arrow.up.circle.fill" : "arrow.up.circle.fill")
-                            .font(.system(size: 32))
-                            .foregroundColor(.indigo)
-                    }
-                    .disabled(store.isProcessing)
-                } else {
-                    MicButton()
-                }
+        HStack(alignment: .bottom, spacing: 8) {
+            Button {
+                showingAttachmentMenu = true
+            } label: {
+                Image(systemName: "paperclip")
+                    .font(.system(size: 20))
+                    .foregroundColor(.indigo)
+                    .frame(width: 36, height: 36)
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 10)
+            .confirmationDialog("Add Attachment", isPresented: $showingAttachmentMenu) {
+                Button("Photo Library") { showingPhotoPicker = true }
+                Button("Browse Files") { showingFilePicker = true }
+                Button("Cancel", role: .cancel) {}
+            }
+
+            ZStack(alignment: .leading) {
+                if inputText.isEmpty && !store.isListening {
+                    Text(store.agentModeEnabled ? "Command or ask anything..." : "Message or ask anything...")
+                        .foregroundColor(.secondary)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 10)
+                }
+                TextEditor(text: store.isListening ? $store.transcribedText : $inputText)
+                    .focused($isInputFocused)
+                    .frame(minHeight: 40, maxHeight: 120)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .background(Color(.secondarySystemBackground))
+            .clipShape(RoundedRectangle(cornerRadius: 20))
+
+            if store.isListening || !inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !store.transcribedText.isEmpty {
+                Button {
+                    if store.isListening {
+                        store.stopListening()
+                        if !store.transcribedText.isEmpty { store.sendTranscription() }
+                    } else {
+                        let text = inputText
+                        inputText = ""
+                        store.sendMessage(text, attachments: store.pendingAttachments)
+                    }
+                } label: {
+                    Image(systemName: "arrow.up.circle.fill")
+                        .font(.system(size: 32))
+                        .foregroundColor(.indigo)
+                }
+                .disabled(store.isProcessing)
+            } else {
+                MicButton()
+            }
         }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
         .background(Color(.systemBackground))
     }
 }
 
 struct MicButton: View {
     @EnvironmentObject var store: ConversationStore
-    @State private var isPressed = false
 
     var body: some View {
         Button {
-            if store.isListening {
-                store.stopListening()
-            } else {
-                store.startListening()
-            }
+            if store.isListening { store.stopListening() }
+            else { store.startListening() }
         } label: {
             ZStack {
                 Circle()
@@ -379,7 +470,7 @@ struct MicButton: View {
                     Circle()
                         .stroke(Color.red.opacity(0.3), lineWidth: 6)
                         .frame(width: 36, height: 36)
-                        .scaleEffect(store.isListening ? 1.6 : 1)
+                        .scaleEffect(1.6)
                         .animation(.easeInOut(duration: 0.9).repeatForever(autoreverses: true), value: store.isListening)
                 }
 
@@ -402,10 +493,7 @@ struct ListeningButton: View {
             HStack(spacing: 4) {
                 Image(systemName: store.isListening ? "waveform" : "mic")
                     .symbolEffect(.variableColor, isActive: store.isListening)
-                if store.isListening {
-                    Text("Listening")
-                        .font(.caption.bold())
-                }
+                if store.isListening { Text("Listening").font(.caption.bold()) }
             }
             .foregroundColor(store.isListening ? .red : .indigo)
         }
@@ -529,23 +617,25 @@ struct EmptyConversationView: View {
             Spacer()
 
             VStack(spacing: 12) {
-                Image(systemName: "sparkles")
+                Image(systemName: store.agentModeEnabled ? "bolt.fill" : "sparkles")
                     .font(.system(size: 56))
                     .foregroundStyle(
                         LinearGradient(colors: [.indigo, .purple], startPoint: .topLeading, endPoint: .bottomTrailing)
                     )
 
-                Text("Executive Assistant")
+                Text(store.agentModeEnabled ? "Agent Mode Active" : "Executive Assistant")
                     .font(.title2.bold())
 
-                Text("Tap the microphone to start listening,\nor type a message below.")
+                Text(store.agentModeEnabled
+                     ? "I can take actions on your phone.\nTell me what to do."
+                     : "Tap the microphone to start listening,\nor type a message below.")
                     .font(.subheadline)
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
             }
 
             VStack(spacing: 10) {
-                ForEach(suggestedPrompts, id: \.self) { prompt in
+                ForEach(store.agentModeEnabled ? agentPrompts : standardPrompts, id: \.self) { prompt in
                     Button {
                         store.sendMessage(prompt)
                     } label: {
@@ -565,10 +655,17 @@ struct EmptyConversationView: View {
         .padding()
     }
 
-    private let suggestedPrompts = [
+    private let standardPrompts = [
         "What should I focus on today?",
-        "Summarize my recent conversations",
         "Help me draft a professional email",
-        "What are my action items?"
+        "Summarize my recent conversations",
+        "Break this task down into steps"
+    ]
+
+    private let agentPrompts = [
+        "Call [contact name]",
+        "Remind me to review budget at 3pm",
+        "Navigate to the nearest coffee shop",
+        "Open Settings"
     ]
 }

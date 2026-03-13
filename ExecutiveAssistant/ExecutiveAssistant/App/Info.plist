@@ -72,6 +72,12 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSCalendarsFullAccessUsageDescription</key>
+	<string>Executive Assistant creates calendar events on your behalf when you ask it to schedule something.</string>
+	<key>NSRemindersFullAccessUsageDescription</key>
+	<string>Executive Assistant creates and manages reminders when you ask it to remind you of something.</string>
+	<key>NSContactsUsageDescription</key>
+	<string>Executive Assistant looks up contact phone numbers and email addresses so it can call or message them for you.</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 </dict>

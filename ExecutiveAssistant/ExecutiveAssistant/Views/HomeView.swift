@@ -3,8 +3,6 @@ import SwiftUI
 struct HomeView: View {
     @EnvironmentObject var store: ConversationStore
     @Binding var selectedTab: ContentView.Tab
-    @State private var showingQuickAction = false
-    @State private var quickActionText = ""
 
     private var greeting: String {
         let hour = Calendar.current.component(.hour, from: Date())
@@ -25,7 +23,7 @@ struct HomeView: View {
     var body: some View {
         NavigationView {
             ScrollView {
-                VStack(alignment: .leading, spacing: 24) {
+                VStack(alignment: .leading, spacing: 20) {
 
                     // Header
                     VStack(alignment: .leading, spacing: 4) {
@@ -43,6 +41,36 @@ struct HomeView: View {
                     // Status Card
                     StatusCard()
 
+                    // Active Focus Task (if set)
+                    if !store.currentFocusTask.isEmpty {
+                        ActiveFocusCard(selectedTab: $selectedTab)
+                    }
+
+                    // Overwhelm SOS — prominent
+                    Button {
+                        store.sendOverwhelmSOS()
+                        selectedTab = .conversation
+                    } label: {
+                        HStack(spacing: 12) {
+                            Image(systemName: "sos")
+                                .font(.title3.bold())
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Overwhelmed?")
+                                    .font(.subheadline.bold())
+                                Text("Get ONE clear next action from your assistant")
+                                    .font(.caption)
+                                    .opacity(0.85)
+                            }
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
+                        }
+                        .foregroundColor(.white)
+                        .padding(14)
+                        .background(Color.red.gradient)
+                        .cornerRadius(16)
+                    }
+
                     // Quick Actions
                     VStack(alignment: .leading, spacing: 12) {
                         Text("Quick Actions")
@@ -56,9 +84,24 @@ struct HomeView: View {
                                 color: .indigo
                             ) {
                                 selectedTab = .conversation
-                                if !store.isListening {
-                                    store.startListening()
-                                }
+                                if !store.isListening { store.startListening() }
+                            }
+
+                            QuickActionButton(
+                                icon: "bolt.fill",
+                                title: store.agentModeEnabled ? "Agent: ON" : "Agent Mode",
+                                color: store.agentModeEnabled ? .orange : .purple
+                            ) {
+                                store.agentModeEnabled.toggle()
+                                selectedTab = .conversation
+                            }
+
+                            QuickActionButton(
+                                icon: "scope",
+                                title: "Focus Mode",
+                                color: .teal
+                            ) {
+                                selectedTab = .focus
                             }
 
                             QuickActionButton(
@@ -67,24 +110,6 @@ struct HomeView: View {
                                 color: .blue
                             ) {
                                 store.newConversation()
-                                selectedTab = .conversation
-                            }
-
-                            QuickActionButton(
-                                icon: "doc.badge.plus",
-                                title: "Upload File",
-                                color: .green
-                            ) {
-                                selectedTab = .conversation
-                            }
-
-                            QuickActionButton(
-                                icon: "list.bullet.clipboard.fill",
-                                title: "Summarize",
-                                color: .orange
-                            ) {
-                                store.newConversation()
-                                store.sendMessage("Please summarize everything we've discussed today and list any action items.")
                                 selectedTab = .conversation
                             }
                         }
@@ -108,9 +133,7 @@ struct HomeView: View {
 
                     // API Key Warning
                     if store.apiKey.isEmpty {
-                        APIKeyWarningCard {
-                            selectedTab = .settings
-                        }
+                        APIKeyWarningCard { selectedTab = .settings }
                     }
 
                     Spacer(minLength: 40)
@@ -122,6 +145,55 @@ struct HomeView: View {
     }
 }
 
+// MARK: - Active Focus Card
+
+struct ActiveFocusCard: View {
+    @EnvironmentObject var store: ConversationStore
+    @Binding var selectedTab: ContentView.Tab
+
+    var body: some View {
+        Button {
+            selectedTab = .focus
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: "scope")
+                    .foregroundColor(.teal)
+                    .frame(width: 36, height: 36)
+                    .background(Color.teal.opacity(0.1))
+                    .clipShape(Circle())
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Currently Focusing On")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    Text(store.currentFocusTask)
+                        .font(.subheadline.bold())
+                        .foregroundColor(.primary)
+                        .lineLimit(1)
+                    if !store.focusTasks.isEmpty {
+                        let completed = store.focusTasks.filter { $0.isCompleted }.count
+                        Text("\(completed)/\(store.focusTasks.count) steps done")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                    }
+                }
+
+                Spacer()
+
+                Image(systemName: "chevron.right")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            .padding(12)
+            .background(Color.teal.opacity(0.08))
+            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.teal.opacity(0.2), lineWidth: 1))
+            .cornerRadius(12)
+        }
+    }
+}
+
+// MARK: - Status Card
+
 struct StatusCard: View {
     @EnvironmentObject var store: ConversationStore
 
@@ -132,14 +204,6 @@ struct StatusCard: View {
                     Circle()
                         .fill(store.isListening ? Color.green : Color.gray.opacity(0.4))
                         .frame(width: 10, height: 10)
-                        .overlay(
-                            store.isListening ?
-                            Circle()
-                                .stroke(Color.green.opacity(0.4), lineWidth: 4)
-                                .scaleEffect(store.isListening ? 1.5 : 1)
-                                .animation(.easeInOut(duration: 1).repeatForever(), value: store.isListening)
-                            : nil
-                        )
                     Text(store.isListening ? "Listening..." : "Standby")
                         .font(.subheadline.bold())
                 }
@@ -151,11 +215,18 @@ struct StatusCard: View {
             Spacer()
 
             VStack(alignment: .trailing, spacing: 4) {
-                let personality = ConversationStore.AssistantPersonality(rawValue: store.assistantPersonality)
-                Text(personality?.displayName ?? "Executive")
-                    .font(.subheadline.bold())
-                    .foregroundColor(.indigo)
-                Text("Mode")
+                HStack(spacing: 4) {
+                    if store.agentModeEnabled {
+                        Image(systemName: "bolt.fill")
+                            .font(.caption)
+                            .foregroundColor(.orange)
+                    }
+                    let personality = ConversationStore.AssistantPersonality(rawValue: store.assistantPersonality)
+                    Text(personality?.displayName ?? "Executive")
+                        .font(.subheadline.bold())
+                        .foregroundColor(.indigo)
+                }
+                Text(store.agentModeEnabled ? "Agent Mode" : "Mode")
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
@@ -165,6 +236,8 @@ struct StatusCard: View {
         .cornerRadius(16)
     }
 }
+
+// MARK: - Reusable Components
 
 struct QuickActionButton: View {
     let icon: String
@@ -259,10 +332,7 @@ struct APIKeyWarningCard: View {
             }
             .padding(12)
             .background(Color.orange.opacity(0.08))
-            .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(Color.orange.opacity(0.3), lineWidth: 1)
-            )
+            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.orange.opacity(0.3), lineWidth: 1))
             .cornerRadius(12)
         }
     }

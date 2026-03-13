@@ -20,6 +20,10 @@
 		AA00000B000000000000001B /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000B000000000000001A /* SettingsView.swift */; };
 		AA00000C000000000000001B /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = AA00000C000000000000001A /* Assets.xcassets */; };
 		AA00000D000000000000001B /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = AA00000D000000000000001A /* LaunchScreen.storyboard */; };
+		AA000022000000000000001B /* AgentTool.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000022000000000000001A /* AgentTool.swift */; };
+		AA000023000000000000001B /* AgentService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000023000000000000001A /* AgentService.swift */; };
+		AA000024000000000000001B /* PhoneActionsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000024000000000000001A /* PhoneActionsService.swift */; };
+		AA000025000000000000001B /* FocusView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000025000000000000001A /* FocusView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -38,6 +42,10 @@
 		AA00000D000000000000001A /* LaunchScreen.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; path = LaunchScreen.storyboard; sourceTree = "<group>"; };
 		AA00000E000000000000001A /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		AA00000F000000000000001A /* ExecutiveAssistant.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ExecutiveAssistant.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		AA000022000000000000001A /* AgentTool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentTool.swift; sourceTree = "<group>"; };
+		AA000023000000000000001A /* AgentService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentService.swift; sourceTree = "<group>"; };
+		AA000024000000000000001A /* PhoneActionsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhoneActionsService.swift; sourceTree = "<group>"; };
+		AA000025000000000000001A /* FocusView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FocusView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -89,6 +97,7 @@
 				AA000009000000000000001A /* ConversationView.swift */,
 				AA00000A000000000000001A /* HistoryView.swift */,
 				AA00000B000000000000001A /* SettingsView.swift */,
+				AA000025000000000000001A /* FocusView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -98,6 +107,7 @@
 			children = (
 				AA000002000000000000001A /* Message.swift */,
 				AA000003000000000000001A /* ConversationStore.swift */,
+				AA000022000000000000001A /* AgentTool.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -108,6 +118,8 @@
 				AA000004000000000000001A /* ClaudeService.swift */,
 				AA000005000000000000001A /* AudioService.swift */,
 				AA000006000000000000001A /* FileService.swift */,
+				AA000023000000000000001A /* AgentService.swift */,
+				AA000024000000000000001A /* PhoneActionsService.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -201,6 +213,10 @@
 				AA000009000000000000001B /* ConversationView.swift in Sources */,
 				AA00000A000000000000001B /* HistoryView.swift in Sources */,
 				AA00000B000000000000001B /* SettingsView.swift in Sources */,
+				AA000022000000000000001B /* AgentTool.swift in Sources */,
+				AA000023000000000000001B /* AgentService.swift in Sources */,
+				AA000024000000000000001B /* PhoneActionsService.swift in Sources */,
+				AA000025000000000000001B /* FocusView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
